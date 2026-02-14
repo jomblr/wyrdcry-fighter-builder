@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wyrdcry Points Calculator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="app-header">
+            <h1>Wyrdcry Points Calculator</h1>
+            <div class="header-actions">
+                <button type="button" class="btn-theme" id="btn-theme" onclick="toggleTheme()" title="Toggle dark/light theme" aria-label="Toggle theme">Dark</button>
+                <button type="button" class="btn-header" onclick="downloadProfilesCsv()">Export CSV</button>
+                <button type="button" class="btn-header" onclick="document.getElementById('import-csv-input').click()">Import CSV</button>
+                <input type="file" id="import-csv-input" accept=".csv" style="display: none;">
+            </div>
+        </header>
+
+        <div class="three-column-layout">
+            <!-- Left: Characteristic Point Costs -->
+            <section class="column column-costs">
+                <h2>Characteristic Point Costs</h2>
+                <div class="cost-profile-controls">
+                    <div class="form-group">
+                        <label for="cost-profile-select">Cost profile:</label>
+                        <select id="cost-profile-select">
+                            <option value="__add__">— Add new profile —</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="cost-profile-name">Profile name:</label>
+                        <input type="text" id="cost-profile-name" placeholder="Name this profile">
+                    </div>
+                    <button type="button" class="btn-save-cost-profile" onclick="saveCostProfile()">Save</button>
+                    <div class="form-group">
+                        <label for="cost-profile-base">Base fighter cost (gc):</label>
+                        <input type="number" id="cost-profile-base" min="0" step="1" value="20">
+                    </div>
+                </div>
+                <div class="costs-stack">
+                <div class="cost-item">
+                    <label>Move (per inch):</label>
+                    <input type="number" id="cost-move" min="0" step="1" value="0">
+                </div>
+                <div class="cost-item">
+                    <label>Fight (per point):</label>
+                    <input type="number" id="cost-fight" min="0" step="1" value="0">
+                </div>
+                <div class="cost-item">
+                    <label>Shoot (per point):</label>
+                    <input type="number" id="cost-shoot" min="0" step="1" value="0">
+                </div>
+                <div class="cost-item">
+                    <label>Defense (per point):</label>
+                    <input type="number" id="cost-defense" min="0" step="1" value="0">
+                </div>
+                <div class="cost-item">
+                    <label>Health (per point):</label>
+                    <input type="number" id="cost-health" min="0" step="0.5" value="0">
+                </div>
+                <div class="cost-item">
+                    <label>Bravery (per point):</label>
+                    <input type="number" id="cost-bravery" min="0" step="1" value="0">
+                </div>
+                <div class="cost-item">
+                    <label>Power Level (per level):</label>
+                    <input type="number" id="cost-powerlevel" step="0.1" value="0">
+                </div>
+                </div>
+                <button type="button" class="btn-delete-cost-profile" onclick="deleteCostProfile()">Delete cost profile</button>
+            </section>
+
+            <!-- Middle: Saved Profiles (width priority) -->
+            <section class="column column-profiles">
+                <h2>Saved Profiles</h2>
+                <div class="profiles-controls">
+                    <div class="form-group">
+                        <label>Filter by Faction:</label>
+                        <div class="faction-multiselect" id="faction-multiselect">
+                            <button type="button" class="faction-multiselect-trigger" id="faction-filter-trigger" aria-haspopup="listbox" aria-expanded="false">All Factions</button>
+                            <div class="faction-multiselect-panel" id="faction-filter-panel" role="listbox" aria-hidden="true">
+                                <div class="faction-multiselect-options" id="faction-filter-options"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="sort-profiles">Sort by:</label>
+                        <select id="sort-profiles">
+                            <option value="cost-desc">Cost (high to low)</option>
+                            <option value="cost-asc">Cost (low to high)</option>
+                            <option value="name-asc">Name (A–Z)</option>
+                            <option value="name-desc">Name (Z–A)</option>
+                            <option value="faction-asc">Faction (A–Z)</option>
+                            <option value="faction-desc">Faction (Z–A)</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="profiles-list" class="profiles-table-wrap">
+                    <p class="empty-message">No profiles saved yet. Create one in Fighter Builder!</p>
+                </div>
+            </section>
+
+            <!-- Right: Fighter Builder (stacked vertically) -->
+            <section class="column column-builder">
+                <div class="profile-editor">
+                <div class="builder-header">
+                    <h2>Fighter Builder</h2>
+                    <div class="builder-header-buttons">
+                        <button type="button" id="btn-save-fighter" class="btn-save" onclick="saveProfile()" disabled>Save fighter</button>
+                        <button type="button" class="btn-new" onclick="resetProfile()">Add new fighter</button>
+                    </div>
+                </div>
+                <div class="builder-stack">
+                    <div class="form-group">
+                        <label for="profile-name">Name:</label>
+                        <input type="text" id="profile-name" placeholder="Enter profile name">
+                    </div>
+                    <div class="form-group char-item">
+                        <label for="profile-faction">Faction:</label>
+                        <select id="profile-faction">
+                            <option value="Eshin">Clan Eshin</option>
+                            <option value="Mercenaries">Mercenaries</option>
+                            <option value="Undead">Undead</option>
+                            <option value="Witch Hunters">With Hunters</option>
+                            <option value="Sisters">Sisters of Sigmar</option>
+                            <option value="Possessed">Possessed</option>
+                            <option value="Hired Sword">Hired Sword</option>
+                        </select>
+                    </div>
+                    <div class="char-item">
+                        <label>Move (inches):</label>
+                        <div class="char-controls">
+                            <button class="btn-small" onclick="adjustChar('move', -1)">-</button>
+                            <input type="number" id="char-move" min="0" step="1" value="5">
+                            <button class="btn-small" onclick="adjustChar('move', 1)">+</button>
+                        </div>
+                    </div>
+                    <div class="char-item">
+                        <label>Fight (1-8):</label>
+                        <div class="char-controls">
+                            <button class="btn-small" onclick="adjustChar('fight', -1)">-</button>
+                            <input type="number" id="char-fight" min="1" max="8" value="3">
+                            <button class="btn-small" onclick="adjustChar('fight', 1)">+</button>
+                        </div>
+                    </div>
+                    <div class="char-item">
+                        <label>Shoot (1-8):</label>
+                        <div class="char-controls">
+                            <button class="btn-small" onclick="adjustChar('shoot', -1)">-</button>
+                            <input type="number" id="char-shoot" min="1" max="8" value="3">
+                            <button class="btn-small" onclick="adjustChar('shoot', 1)">+</button>
+                        </div>
+                    </div>
+                    <div class="char-item">
+                        <label>Defense (1-8):</label>
+                        <div class="char-controls">
+                            <button class="btn-small" onclick="adjustChar('defense', -1)">-</button>
+                            <input type="number" id="char-defense" min="1" max="8" value="3">
+                            <button class="btn-small" onclick="adjustChar('defense', 1)">+</button>
+                        </div>
+                    </div>
+                    <div class="char-item">
+                        <label>Health (4-30):</label>
+                        <div class="char-controls">
+                            <button class="btn-small" onclick="adjustChar('health', -1)">-</button>
+                            <input type="number" id="char-health" min="4" max="30" value="8">
+                            <button class="btn-small" onclick="adjustChar('health', 1)">+</button>
+                        </div>
+                    </div>
+                    <div class="char-item">
+                        <label>Bravery:</label>
+                        <select id="char-bravery">
+                            <option value="2">2+</option>
+                            <option value="3">3+</option>
+                            <option value="4">4+</option>
+                            <option value="5" selected>5+</option>
+                            <option value="6">6+</option>
+                            <option value="1">-</option>
+                        </select>
+                    </div>
+                    <div class="char-item">
+                        <label>Power Level:</label>
+                        <select id="char-powerlevel">
+                            <option value="-3">-3</option>
+                            <option value="-2">-2</option>
+                            <option value="-1">-1</option>
+                            <option value="0" selected>0</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="points-display">
+                    <div class="points-breakdown">
+                        <div class="breakdown-item">
+                            <span>Base Cost:</span>
+                            <span id="base-cost">20</span>gc
+                        </div>
+                        <div class="breakdown-item">
+                            <span>Move Cost:</span>
+                            <span id="move-cost">0</span>gc
+                        </div>
+                        <div class="breakdown-item">
+                            <span>Fight Cost:</span>
+                            <span id="fight-cost">0</span>gc
+                        </div>
+                        <div class="breakdown-item">
+                            <span>Shoot Cost:</span>
+                            <span id="shoot-cost">0</span>gc
+                        </div>
+                        <div class="breakdown-item">
+                            <span>Defense Cost:</span>
+                            <span id="defense-cost">0</span>gc
+                        </div>
+                        <div class="breakdown-item">
+                            <span>Health Cost:</span>
+                            <span id="health-cost">0</span>gc
+                        </div>
+                        <div class="breakdown-item">
+                            <span>Bravery Cost:</span>
+                            <span id="bravery-cost">0</span>gc
+                        </div>
+                        <div class="breakdown-item">
+                            <span>Power Level Cost:</span>
+                            <span id="powerlevel-cost">0</span>gc
+                        </div>
+                        <div class="breakdown-item total">
+                            <span>Total Cost:</span>
+                            <span id="total-cost">20</span>gc
+                        </div>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button class="btn-secondary" onclick="resetProfile()">Reset to Basic Fighter</button>
+                </div>
+            </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
