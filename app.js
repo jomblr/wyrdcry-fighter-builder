@@ -258,6 +258,91 @@ function saveCostProfile() {
     loadCostProfiles();
 }
 
+// Export cost profiles as CSV
+function downloadCostProfilesCsv() {
+    const profiles = getCostProfiles();
+    if (profiles.length === 0) {
+        alert('No cost profiles to export. Create and save a cost profile first.');
+        return;
+    }
+    const headers = ['name', 'baseCost', 'move', 'fight', 'shoot', 'defense', 'health', 'bravery', 'powerlevel'];
+    const rows = profiles.map(p => [
+        p.name || 'Unnamed',
+        p.baseCost != null ? p.baseCost : 20,
+        p.costs?.move ?? 0,
+        p.costs?.fight ?? 0,
+        p.costs?.shoot ?? 0,
+        p.costs?.defense ?? 0,
+        p.costs?.health ?? 0,
+        p.costs?.bravery ?? 0,
+        p.costs?.powerlevel ?? 0
+    ]);
+    const csvContent = [headers.map(csvEscape).join(','), ...rows.map(r => r.map(csvEscape).join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'cost_profiles.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// Import cost profiles from CSV
+function importCostProfilesFromCsv(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const text = e.target.result;
+        const lines = text.split(/\r?\n/).filter(l => l.trim());
+        if (lines.length < 2) {
+            alert('CSV must have a header row and at least one cost profile.');
+            return;
+        }
+        const header = parseCsvLine(lines[0]).map(h => h.trim().toLowerCase());
+        const nameIdx = header.findIndex(h => h === 'name');
+        const baseIdx = header.findIndex(h => h === 'basecost');
+        const moveIdx = header.findIndex(h => h === 'move');
+        const fightIdx = header.findIndex(h => h === 'fight');
+        const shootIdx = header.findIndex(h => h === 'shoot');
+        const defenseIdx = header.findIndex(h => h === 'defense');
+        const healthIdx = header.findIndex(h => h === 'health');
+        const braveryIdx = header.findIndex(h => h === 'bravery');
+        const plIdx = header.findIndex(h => h === 'powerlevel');
+        if (nameIdx === -1 || moveIdx === -1) {
+            alert('CSV must include at least "name" and "move" columns.');
+            return;
+        }
+        const imported = [];
+        for (let i = 1; i < lines.length; i++) {
+            const cells = parseCsvLine(lines[i]);
+            const get = (idx) => (idx >= 0 && idx < cells.length ? cells[idx].trim() : '');
+            imported.push({
+                id: 'profile-' + Date.now() + '-' + i,
+                name: get(nameIdx) || 'Unnamed',
+                baseCost: baseIdx >= 0 ? Math.max(0, parseInt(get(baseIdx), 10) || 20) : 20,
+                costs: {
+                    move: parseFloat(get(moveIdx)) || 0,
+                    fight: parseFloat(get(fightIdx)) || 0,
+                    shoot: parseFloat(get(shootIdx)) || 0,
+                    defense: parseFloat(get(defenseIdx)) || 0,
+                    health: parseFloat(get(healthIdx)) || 0,
+                    bravery: parseFloat(get(braveryIdx)) || 0,
+                    powerlevel: parseFloat(get(plIdx)) || 0
+                }
+            });
+        }
+        const existing = getCostProfiles();
+        const merged = [...existing, ...imported];
+        setCostProfiles(merged);
+        if (imported.length > 0) {
+            setActiveCostProfileId(imported[0].id);
+        }
+        loadCostProfiles();
+        document.getElementById('import-cost-profiles-input').value = '';
+    };
+    reader.readAsText(file, 'UTF-8');
+}
+
 function deleteCostProfile() {
     const activeId = getActiveCostProfileId();
     if (!activeId) {
@@ -293,6 +378,21 @@ function getCosts() {
         bravery: parseFloat(document.getElementById('cost-bravery').value) || 0,
         powerlevel: parseFloat(document.getElementById('cost-powerlevel').value) || 0
     };
+}
+
+// Persist cost profile inputs to localStorage immediately (when an active profile is selected)
+function persistCostProfileInputs() {
+    const activeId = getActiveCostProfileId();
+    if (!activeId) return;
+    const profiles = getCostProfiles();
+    const idx = profiles.findIndex(p => p.id === activeId);
+    if (idx < 0) return;
+    const costs = getCosts();
+    const baseCostInput = document.getElementById('cost-profile-base');
+    const baseCost = baseCostInput ? Math.max(0, parseInt(baseCostInput.value, 10) || 20) : 20;
+    const name = (document.getElementById('cost-profile-name').value || '').trim() || profiles[idx].name || 'Unnamed';
+    profiles[idx] = { ...profiles[idx], name, costs, baseCost };
+    setCostProfiles(profiles);
 }
 
 // Calculate points for a fighter profile (base cost from active cost profile)
@@ -739,11 +839,12 @@ function deleteProfile(id) {
 
 // Setup event listeners
 function setupEventListeners() {
-    // Cost inputs (update display only; persist via Save in cost profile)
+    // Cost inputs: update display and persist immediately when active profile is selected
     COST_KEYS.forEach(key => {
         const input = document.getElementById(`cost-${key}`);
         if (input) {
             input.addEventListener('input', () => {
+                persistCostProfileInputs();
                 updatePointsDisplay();
                 updateAllProfilesDisplay();
             });
@@ -756,10 +857,11 @@ function setupEventListeners() {
         costProfileSelect.addEventListener('change', () => selectCostProfile(costProfileSelect.value));
     }
 
-    // Base fighter cost (updates display when changed; persist via Save)
+    // Base fighter cost: same as other cost fields - persist immediately
     const costProfileBase = document.getElementById('cost-profile-base');
     if (costProfileBase) {
         costProfileBase.addEventListener('input', () => {
+            persistCostProfileInputs();
             updatePointsDisplay();
             updateAllProfilesDisplay();
         });
@@ -831,12 +933,21 @@ function setupEventListeners() {
     const sortProfilesEl = document.getElementById('sort-profiles');
     if (sortProfilesEl) sortProfilesEl.addEventListener('change', loadProfiles);
 
-    // Import CSV file input
+    // Import CSV file input (fighters)
     const importInput = document.getElementById('import-csv-input');
     if (importInput) {
         importInput.addEventListener('change', function () {
             const file = this.files && this.files[0];
             if (file) importProfilesFromCsv(file);
+        });
+    }
+
+    // Import cost profiles CSV
+    const importCostInput = document.getElementById('import-cost-profiles-input');
+    if (importCostInput) {
+        importCostInput.addEventListener('change', function () {
+            const file = this.files && this.files[0];
+            if (file) importCostProfilesFromCsv(file);
         });
     }
 }

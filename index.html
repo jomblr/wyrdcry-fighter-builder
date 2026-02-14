@@ -31,15 +31,19 @@
                     </div>
                     <div class="form-group">
                         <label for="cost-profile-name">Profile name:</label>
-                        <input type="text" id="cost-profile-name" placeholder="Name this profile">
+                        <div class="profile-name-row">
+                            <input type="text" id="cost-profile-name" placeholder="Name this profile">
+                            <button type="button" class="btn-save-cost-profile" onclick="saveCostProfile()">Save</button>
+                        </div>
                     </div>
-                    <button type="button" class="btn-save-cost-profile" onclick="saveCostProfile()">Save</button>
-                    <div class="form-group">
-                        <label for="cost-profile-base">Base fighter cost (gc):</label>
-                        <input type="number" id="cost-profile-base" min="0" step="1" value="20">
-                    </div>
+                    
+
                 </div>
                 <div class="costs-stack">
+                <div class="cost-item">
+                    <label for="cost-profile-base">Base fighter cost (gc):</label>
+                    <input type="number" id="cost-profile-base" min="0" step="1" value="20">
+                </div>
                 <div class="cost-item">
                     <label>Move (per inch):</label>
                     <input type="number" id="cost-move" min="0" step="1" value="0">
@@ -70,6 +74,11 @@
                 </div>
                 </div>
                 <button type="button" class="btn-delete-cost-profile" onclick="deleteCostProfile()">Delete cost profile</button>
+                <div class="cost-profile-csv-actions">
+                    <button type="button" class="btn-secondary btn-cost-profile-csv" onclick="downloadCostProfilesCsv()">Export cost profiles</button>
+                    <button type="button" class="btn-secondary btn-cost-profile-csv" onclick="document.getElementById('import-cost-profiles-input').click()">Import cost profiles</button>
+                    <input type="file" id="import-cost-profiles-input" accept=".csv" style="display: none;">
+                </div>
             </section>
 
             <!-- Middle: Saved Profiles (width priority) -->
